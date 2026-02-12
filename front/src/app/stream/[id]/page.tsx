@@ -24,6 +24,16 @@ interface Broadcast {
   [key: string]: any;
 }
 
+interface VodFile {
+  streamId: string;
+  name: string;
+  filePath?: string;
+  size?: number;
+  date?: number;
+  duration?: number;
+  [key: string]: any;
+}
+
 export default function StreamDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -35,9 +45,12 @@ export default function StreamDetailPage() {
   });
 
   const [broadcast, setBroadcast] = useState<Broadcast | null>(null);
+  const [vods, setVods] = useState<VodFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [vodsLoading, setVodsLoading] = useState(false);
+  const [deletingVodId, setDeletingVodId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isJsonOpen, setIsJsonOpen] = useState(false);
 
@@ -67,11 +80,63 @@ export default function StreamDetailPage() {
     }
   };
 
+  const fetchVods = async () => {
+    setVodsLoading(true);
+    try {
+      const data = await AntMediaClient.getVodList(
+        settings.serverUrl,
+        settings.appName,
+        0,
+        50,
+        {
+          streamId: streamId,
+          sort_by: "date",
+          order_by: "desc",
+        }
+      );
+      setVods(data || []);
+    } catch (err) {
+      console.error("Error fetching VODs:", err);
+    } finally {
+      setVodsLoading(false);
+    }
+  };
+
+  const handleDeleteVod = async (vodId: string, vodName: string) => {
+    const confirmed = window.confirm(
+      `Are you sure you want to delete the VOD "${vodName || vodId}"? This action cannot be undone.`
+    );
+    
+    if (!confirmed) return;
+
+    setDeletingVodId(vodId);
+    try {
+      await AntMediaClient.deleteVod(
+        settings.serverUrl,
+        settings.appName,
+        vodId
+      );
+      // Refresh the VOD list after deletion
+      await fetchVods();
+    } catch (err) {
+      console.error("Error deleting VOD:", err);
+      alert("Failed to delete VOD. Please check the console for details.");
+    } finally {
+      setDeletingVodId(null);
+    }
+  };
+
   useEffect(() => {
     if (streamId) {
       fetchBroadcast(false);
     }
   }, [streamId, settings.serverUrl, settings.appName]);
+
+  useEffect(() => {
+    if (broadcast && broadcast.streamId) {
+      fetchVods();
+    }
+  }, [broadcast?.streamId, settings.serverUrl, settings.appName]);
 
   // Auto-refresh every 5 seconds (always enabled)
   useEffect(() => {
@@ -288,6 +353,104 @@ export default function StreamDetailPage() {
                   <p className="text-2xl font-bold text-gray-900">{broadcast.rtmpViewerCount || 0}</p>
                 </div>
               </div>
+            </div>
+
+            {/* VODs Section */}
+            <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Recorded VODs</h3>
+                <button
+                  onClick={fetchVods}
+                  disabled={vodsLoading}
+                  className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center gap-1.5"
+                >
+                  <svg 
+                    className={`w-4 h-4 ${vodsLoading ? 'animate-spin' : ''}`} 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Refresh
+                </button>
+              </div>
+              
+              {vodsLoading && vods.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+                  <p>Loading VODs...</p>
+                </div>
+              ) : vods.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <svg className="w-12 h-12 mx-auto mb-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M3 12a9 9 0 1118 0 9 9 0 01-18 0z" />
+                  </svg>
+                  <p>No VODs recorded for this stream</p>
+                  <p className="text-sm mt-1">Enable recording to capture stream content</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {vods.map((vod, index) => (
+                    <div
+                      key={vod.filePath || `${vod.streamId}-${vod.date}-${index}`}
+                      className="flex items-center justify-between bg-gray-50 rounded-lg p-4 border border-gray-200 hover:border-blue-300 transition-colors"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <svg className="w-5 h-5 text-blue-600 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                            <path fillRule="evenodd" d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm0 18a8 8 0 100-16 8 8 0 000 16z" clipRule="evenodd" />
+                          </svg>
+                          <span className="font-medium text-gray-900 truncate">
+                            {vod.name || vod.streamId}
+                          </span>
+                        </div>
+                        <div className="text-sm text-gray-500 mt-1 ml-7">
+                          {vod.filePath && (
+                            <p className="truncate">Path: {vod.filePath}</p>
+                          )}
+                          <div className="flex gap-4 mt-1">
+                            {vod.duration && (
+                              <span>Duration: {Math.floor(vod.duration / 60)}:{String(vod.duration % 60).padStart(2, '0')}</span>
+                            )}
+                            {vod.size && (
+                              <span>Size: {(vod.size / (1024 * 1024)).toFixed(2)} MB</span>
+                            )}
+                            {vod.date && (
+                              <span>Recorded: {new Date(vod.date).toLocaleString()}</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 ml-4">
+                        <button
+                          onClick={() => {
+                            const playUrl = `${settings.serverUrl}/${settings.appName}/play.html?name=${vod.streamId}`;
+                            window.open(playUrl, '_blank');
+                          }}
+                          className="px-3 py-1.5 bg-green-600 text-white text-sm rounded-md hover:bg-green-700 transition-colors flex items-center gap-1.5"
+                        >
+                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M8 5v14l11-7z" />
+                          </svg>
+                          Play
+                        </button>
+                        <button
+                          onClick={() => handleDeleteVod(vod.streamId, vod.name)}
+                          disabled={deletingVodId === vod.streamId}
+                          className="px-3 py-1.5 bg-red-600 text-white text-sm rounded-md hover:bg-red-700 disabled:opacity-50 transition-colors flex items-center gap-1.5"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                          {deletingVodId === vod.streamId ? "Deleting..." : "Delete"}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             </div>
 

@@ -172,10 +172,53 @@ export default function Home() {
           setIsAuthenticated(false);
           setAuthStatus("Authentication failed");
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error("Error authenticating on app load:", error);
-        setIsAuthenticated(false);
-        setAuthStatus("Authentication error");
+        
+        // Check if this might be an initial user scenario (no users exist yet)
+        // Try to create initial user with settings credentials
+        if (error.message && (error.message.includes("401") || error.message.includes("Failed to authenticate"))) {
+          setAuthStatus("Creating initial user...");
+          try {
+            const createResult = await AntMediaClient.createInitialUser(
+              settings.serverUrl,
+              settings.email,
+              settings.password
+            );
+            
+            if (createResult.success) {
+              // User created successfully, now try to authenticate again
+              setAuthStatus("Initial user created, authenticating...");
+              const retryResult = await AntMediaClient.authenticate(
+                settings.serverUrl,
+                settings.appName,
+                settings.email,
+                settings.password,
+                settings.jwtToken
+              );
+              
+              if (retryResult.success) {
+                setIsAuthenticated(true);
+                setAuthStatus("Authenticated ✓");
+                await fetchBroadcasts();
+                await loadAppSettings();
+              } else {
+                setIsAuthenticated(false);
+                setAuthStatus("Authentication failed after user creation");
+              }
+            } else {
+              setIsAuthenticated(false);
+              setAuthStatus("Failed to create initial user");
+            }
+          } catch (createError) {
+            console.error("Error creating initial user:", createError);
+            setIsAuthenticated(false);
+            setAuthStatus("Authentication error");
+          }
+        } else {
+          setIsAuthenticated(false);
+          setAuthStatus("Authentication error");
+        }
       } finally {
         setLoading(false);
       }
@@ -203,10 +246,52 @@ export default function Home() {
         setIsAuthenticated(false);
         setAuthStatus("Authentication failed");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error authenticating:", error);
-      setIsAuthenticated(false);
-      setAuthStatus("Authentication error");
+      
+      // Check if this might be an initial user scenario (no users exist yet)
+      // Try to create initial user with settings credentials
+      if (error.message && (error.message.includes("401") || error.message.includes("Failed to authenticate"))) {
+        setAuthStatus("Creating initial user...");
+        try {
+          const createResult = await AntMediaClient.createInitialUser(
+            settings.serverUrl,
+            settings.email,
+            settings.password
+          );
+          
+          if (createResult.success) {
+            // User created successfully, now try to authenticate again
+            setAuthStatus("Initial user created, authenticating...");
+            const retryResult = await AntMediaClient.authenticate(
+              settings.serverUrl,
+              settings.appName,
+              settings.email,
+              settings.password,
+              settings.jwtToken
+            );
+            
+            if (retryResult.success) {
+              setIsAuthenticated(true);
+              setAuthStatus("Authenticated ✓");
+              await fetchBroadcasts();
+            } else {
+              setIsAuthenticated(false);
+              setAuthStatus("Authentication failed after user creation");
+            }
+          } else {
+            setIsAuthenticated(false);
+            setAuthStatus("Failed to create initial user");
+          }
+        } catch (createError) {
+          console.error("Error creating initial user:", createError);
+          setIsAuthenticated(false);
+          setAuthStatus("Authentication error");
+        }
+      } else {
+        setIsAuthenticated(false);
+        setAuthStatus("Authentication error");
+      }
     } finally {
       setLoading(false);
     }
@@ -449,10 +534,58 @@ export default function Home() {
         setIsAuthenticated(false);
         setAuthStatus("Authentication failed");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error authenticating:", error);
-      setIsAuthenticated(false);
-      setAuthStatus("Authentication error");
+      
+      // Check if this might be an initial user scenario (no users exist yet)
+      // Try to create initial user with settings credentials
+      if (error.message && (error.message.includes("401") || error.message.includes("Failed to authenticate"))) {
+        setAuthStatus("Creating initial user...");
+        try {
+          const createResult = await AntMediaClient.createInitialUser(
+            settings.serverUrl,
+            settings.email,
+            settings.password
+          );
+          
+          if (createResult.success) {
+            // User created successfully, now try to authenticate again
+            setAuthStatus("Initial user created, authenticating...");
+            const retryResult = await AntMediaClient.authenticate(
+              settings.serverUrl,
+              settings.appName,
+              settings.email,
+              settings.password,
+              settings.jwtToken
+            );
+            
+            if (retryResult.success) {
+              setIsAuthenticated(true);
+              setAuthStatus("Authenticated ✓");
+              setLoadingSettings(true);
+              try {
+                await loadAppSettings();
+              } finally {
+                setLoadingSettings(false);
+              }
+              await fetchBroadcasts();
+            } else {
+              setIsAuthenticated(false);
+              setAuthStatus("Authentication failed after user creation");
+            }
+          } else {
+            setIsAuthenticated(false);
+            setAuthStatus("Failed to create initial user");
+          }
+        } catch (createError) {
+          console.error("Error creating initial user:", createError);
+          setIsAuthenticated(false);
+          setAuthStatus("Authentication error");
+        }
+      } else {
+        setIsAuthenticated(false);
+        setAuthStatus("Authentication error");
+      }
     } finally {
       setLoading(false);
     }
@@ -980,7 +1113,7 @@ export default function Home() {
                         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                           <path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M3 12a9 9 0 1118 0 9 9 0 01-18 0z" />
                         </svg>
-                        🎥 Broadcast
+                        🎥 Broadcast WebRTC
                       </button>
                       <button
                         onClick={() => window.open(`/stream/${stream.streamId}/webrtc-playback`, '_blank')}
@@ -991,7 +1124,7 @@ export default function Home() {
                           <path d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
                           <path fillRule="evenodd" d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm0 18a8 8 0 100-16 8 8 0 000 16z" clipRule="evenodd" />
                         </svg>
-                        👁️ Watch
+                        👁️ Watch WebRTC
                       </button>
                     </div>
                   </div>

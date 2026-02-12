@@ -12,6 +12,7 @@ import {
   getMediaDevices,
   createTestVideoStream,
 } from "@/app/lib/webrtc";
+import { AntMediaClient } from "@/app/client";
 
 interface Settings {
   serverUrl: string;
@@ -78,6 +79,20 @@ export default function WebRTCBroadcastPage() {
       }
     };
   }, []);
+
+  // Helper functions for stats collection
+  const startStatsCollection = () => {
+    if (statsIntervalRef.current) clearInterval(statsIntervalRef.current);
+    // Stats are collected through the 'updated_stats' callback
+  };
+
+  const stopStatsCollection = () => {
+    if (statsIntervalRef.current) {
+      clearInterval(statsIntervalRef.current);
+      statsIntervalRef.current = null;
+    }
+    setStats(null);
+  };
 
   // Initialize WebRTC Adaptor
   useEffect(() => {
@@ -213,18 +228,33 @@ export default function WebRTCBroadcastPage() {
     };
   }, [settings.serverUrl, settings.appName, streamId, useScreenShare, selectedCamera, useTestStream]);
 
-  const startStatsCollection = () => {
-    if (statsIntervalRef.current) clearInterval(statsIntervalRef.current);
-    // Stats are collected through the 'updated_stats' callback
-  };
+  // Check current stream status and update publishing state after adaptor is ready
+  useEffect(() => {
+    if (!adaptorInitialized) return;
 
-  const stopStatsCollection = () => {
-    if (statsIntervalRef.current) {
-      clearInterval(statsIntervalRef.current);
-      statsIntervalRef.current = null;
-    }
-    setStats(null);
-  };
+    const checkStreamStatus = async () => {
+      try {
+        const broadcast = await AntMediaClient.getBroadcast(
+          settings.serverUrl,
+          settings.appName,
+          streamId
+        );
+        
+        // If stream is already broadcasting, update the state
+        if (broadcast.status === "broadcasting" && broadcast.publishType === "WebRTC") {
+          setIsPublishing(true);
+          setStatus(`Stream is already broadcasting: ${streamId}`);
+          // Start stats collection for existing broadcast
+          startStatsCollection();
+        }
+      } catch (error) {
+        console.log("Stream status check:", error);
+        // Stream might not exist yet, which is fine for new broadcasts
+      }
+    };
+
+    checkStreamStatus();
+  }, [settings.serverUrl, settings.appName, streamId, adaptorInitialized]);
 
   const handleStartBroadcast = async () => {
     if (!adaptorRef.current) {
@@ -457,6 +487,16 @@ export default function WebRTCBroadcastPage() {
                   className="w-full bg-red-600 hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-semibold py-2 px-4 rounded-lg transition-colors"
                 >
                   Stop Broadcast
+                </button>
+                <button
+                  onClick={() => window.open(`/stream/${streamId}/webrtc-playback`, '_blank')}
+                  className="w-full bg-gradient-to-r from-green-600 to-green-700 text-white font-semibold py-2 px-4 rounded-lg transition-all hover:from-green-700 hover:to-green-800 flex items-center justify-center gap-2"
+                >
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                    <path fillRule="evenodd" d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm0 18a8 8 0 100-16 8 8 0 000 16z" clipRule="evenodd" />
+                  </svg>
+                  👁️ Watch WebRTC Stream
                 </button>
               </div>
 
