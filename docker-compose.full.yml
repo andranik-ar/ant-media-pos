@@ -1,0 +1,23 @@
+services:
+  antmedia:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: antmedia-full
+    ports:
+      - "3000:3000"     # Frontend port
+      - "5080:5080"     # HTTP port
+      - "5443:5443"     # HTTPS port  
+      - "1935:1935"     # RTMP port
+      - "5554:5554"     # WebRTC port
+    volumes:
+      - antmedia_data:/usr/local/antmedia
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+    privileged: true
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+    
+volumes:
+  antmedia_data:
+    driver: local

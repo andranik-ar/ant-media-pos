@@ -1,0 +1,334 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { AntMediaClient } from "@/app/client";
+
+interface Settings {
+  serverUrl: string;
+  appName: string;
+}
+
+interface Broadcast {
+  streamId?: string;
+  status?: string;
+  type?: string;
+  name?: string;
+  description?: string;
+  publish?: boolean;
+  date?: number;
+  ipAddr?: string;
+  username?: string;
+  password?: string;
+  streamUrl?: string;
+  [key: string]: any;
+}
+
+export default function StreamDetailPage() {
+  const params = useParams();
+  const router = useRouter();
+  const streamId = params.id as string;
+
+  const [settings] = useState<Settings>({
+    serverUrl: "http://localhost:5080",
+    appName: "LiveApp",
+  });
+
+  const [broadcast, setBroadcast] = useState<Broadcast | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isJsonOpen, setIsJsonOpen] = useState(false);
+
+  const fetchBroadcast = async (isAutoRefresh = false) => {
+    if (isAutoRefresh) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
+    setError(null);
+    try {
+      const data = await AntMediaClient.getBroadcast(
+        settings.serverUrl,
+        settings.appName,
+        streamId
+      );
+      setBroadcast(data);
+    } catch (err) {
+      console.error("Error fetching broadcast:", err);
+      setError(err instanceof Error ? err.message : "Failed to fetch broadcast");
+    } finally {
+      if (isAutoRefresh) {
+        setRefreshing(false);
+      } else {
+        setLoading(false);
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (streamId) {
+      fetchBroadcast(false);
+    }
+  }, [streamId, settings.serverUrl, settings.appName]);
+
+  // Auto-refresh every 5 seconds (always enabled)
+  useEffect(() => {
+    if (!streamId) return;
+
+    const interval = setInterval(() => {
+      fetchBroadcast(true);
+    }, 5000);
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, [streamId, settings.serverUrl, settings.appName]);
+
+  const handleDeleteStream = async () => {
+    const streamName = broadcast?.name || broadcast?.streamId;
+    const confirmed = window.confirm(
+      `Are you sure you want to delete the stream "${streamName}"? This action cannot be undone.`
+    );
+    
+    if (!confirmed) return;
+
+    setDeleting(true);
+    try {
+      await AntMediaClient.deleteBroadcast(
+        settings.serverUrl,
+        settings.appName,
+        streamId
+      );
+      // After successful deletion, navigate back to streams list
+      router.push("/");
+    } catch (err) {
+      console.error("Error deleting broadcast:", err);
+      alert("Failed to delete stream. Please check the console for details.");
+      setDeleting(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading stream details...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !broadcast) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-4">
+        <div className="max-w-4xl mx-auto">
+          <button
+            onClick={() => router.back()}
+            className="mb-4 px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
+          >
+            ← Back
+          </button>
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+            <h1 className="text-xl font-bold text-red-800 mb-2">Error</h1>
+            <p className="text-red-700">{error || "Stream not found"}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="p-4 lg:p-6">
+        <div className="mx-auto max-w-6xl 2xl:max-w-7xl">
+          {/* Breadcrumbs */}
+          <nav className="mb-4">
+            <ol className="flex items-center space-x-2 text-sm">
+              <li>
+                <a 
+                  href="/"
+                  className="text-blue-600 hover:text-blue-800 font-medium"
+                >
+                  Home
+                </a>
+              </li>
+              <li className="text-gray-400">/</li>
+              <li>
+                <a 
+                  href="/"
+                  className="text-blue-600 hover:text-blue-800 font-medium"
+                >
+                  Streams
+                </a>
+              </li>
+              <li className="text-gray-400">/</li>
+              <li className="text-gray-600 font-medium">{streamId}</li>
+            </ol>
+          </nav>
+
+          {/* Header */}
+          <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6 mb-6">
+            <title>Stream Management - {streamId} - Ant Media POS</title>
+
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                Stream Management - {broadcast.name || broadcast.streamId}
+              </h1>
+              <p className="text-gray-600">Stream ID: {broadcast.streamId}</p>
+             </div>
+          </div>
+
+          {/* Content */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Main Content Area */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Status and Actions */}
+            <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                <div className="flex items-center gap-3">
+                  <span
+                    className={`px-4 py-2 rounded-full font-semibold text-sm ${
+                      broadcast.status === "broadcasting"
+                        ? "bg-green-100 text-green-800"
+                        : broadcast.status === "created"
+                        ? "bg-yellow-100 text-yellow-800"
+                        : broadcast.status === "finished"
+                        ? "bg-gray-100 text-gray-800"
+                        : "bg-red-100 text-red-800"
+                    }`}
+                  >
+                    {broadcast.status}
+                  </span>
+                </div>
+                
+                {/* WebRTC Action Buttons */}
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    onClick={() => router.push(`/stream/${streamId}/webrtc-broadcast`)}
+                    className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all font-semibold text-sm flex items-center gap-2 shadow-lg hover:shadow-xl"
+                  >
+                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M3 12a9 9 0 1118 0 9 9 0 01-18 0z" />
+                    </svg>
+                    <span>🎥 Go Live</span>
+                  </button>
+                  <button
+                    onClick={() => window.open(`/stream/${streamId}/webrtc-playback`, '_blank')}
+                    className="px-5 py-2.5 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg hover:from-green-700 hover:to-green-800 transition-all font-semibold text-sm flex items-center gap-2 shadow-lg hover:shadow-xl"
+                  >
+                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                      <path fillRule="evenodd" d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm0 18a8 8 0 100-16 8 8 0 000 16z" clipRule="evenodd" />
+                    </svg>
+                    <span>👁️ Watch Stream</span>
+                  </button>
+                  <button
+                    onClick={() => fetchBroadcast(false)}
+                    disabled={loading || refreshing}
+                    className="px-5 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed transition-all font-semibold text-sm flex items-center gap-2 shadow-lg hover:shadow-xl"
+                  >
+                    <svg 
+                      className={`w-5 h-5 ${loading || refreshing ? 'animate-spin' : ''}`} 
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                    >
+                      <path 
+                        strokeLinecap="round" 
+                        strokeLinejoin="round" 
+                        strokeWidth={2} 
+                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" 
+                      />
+                    </svg>
+                    <span>{refreshing ? "Refreshing..." : "🔄 Refresh"}</span>
+                  </button>
+                  <button
+                    onClick={handleDeleteStream}
+                    disabled={deleting}
+                    className="px-5 py-2.5 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-lg hover:from-red-700 hover:to-red-800 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed transition-all font-semibold text-sm flex items-center gap-2 shadow-lg hover:shadow-xl"
+                  >
+                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                      <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h12a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0015 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                    <span>{deleting ? "Deleting..." : "🗑️ Delete Stream"}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Description */}
+              {broadcast.description && (
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Description</h3>
+                  <p className="text-gray-700 whitespace-pre-wrap">{broadcast.description}</p>
+                </div>
+              )}
+            </div>
+
+            {/* Overview Cards */}
+            <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Stream Statistics</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-gray-50 rounded-lg p-4 border-l-4 border-blue-500">
+                  <p className="text-gray-600 text-sm font-medium mb-1">Type</p>
+                  <p className="text-2xl font-bold text-gray-900">{broadcast.type}</p>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-4 border-l-4 border-green-500">
+                  <p className="text-gray-600 text-sm font-medium mb-1">HLS Viewers</p>
+                  <p className="text-2xl font-bold text-gray-900">{broadcast.hlsViewerCount || 0}</p>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-4 border-l-4 border-purple-500">
+                  <p className="text-gray-600 text-sm font-medium mb-1">WebRTC Viewers</p>
+                  <p className="text-2xl font-bold text-gray-900">{broadcast.webRTCViewerCount || 0}</p>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-4 border-l-4 border-orange-500">
+                  <p className="text-gray-600 text-sm font-medium mb-1">RTMP Viewers</p>
+                  <p className="text-2xl font-bold text-gray-900">{broadcast.rtmpViewerCount || 0}</p>
+                </div>
+              </div>
+            </div>
+            </div>
+
+            {/* Description Section */}
+            {broadcast.description && (
+              <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">Description</h3>
+                <p className="text-gray-700 whitespace-pre-wrap">{broadcast.description}</p>
+              </div>
+            )}
+
+            {/* JSON Viewer Section */}
+            <div className="bg-white rounded-lg shadow-md border border-gray-200">
+              <button
+                onClick={() => setIsJsonOpen(!isJsonOpen)}
+                className="w-full px-6 py-4 text-left flex justify-between items-center hover:bg-gray-50 rounded-t-lg transition-colors border-b border-gray-200"
+              >
+                <h3 className="text-lg font-semibold text-gray-900">Stream Details (JSON)</h3>
+                <svg
+                  className={`w-5 h-5 transform transition-transform ${isJsonOpen ? "rotate-180" : ""}`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {isJsonOpen && (
+                <div className="p-6">
+                  <div className="bg-gray-900 rounded-lg p-4 overflow-x-auto">
+                    <pre className="text-gray-100 text-sm font-mono leading-relaxed">
+                      {JSON.stringify(broadcast, null, 2)}
+                    </pre>
+                  </div>
+                </div>
+                )}
+          </div>
+         </div>
+       </div>
+     </div>
+   </div>
+  );
+}
