@@ -627,8 +627,23 @@ export default function Home() {
         <div className="mx-auto max-w-6xl 2xl:max-w-7xl">
           {/* Header */}
           <header className="mb-6">
-            <h1 className="text-4xl font-bold text-gray-900 mb-2">Stream Management Dashboard</h1>
-            <p className="text-gray-600">Live Stream Management and Broadcasting Interface</p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-4xl font-bold text-gray-900 mb-2">Stream Management Dashboard</h1>
+                <p className="text-gray-600">Live Stream Management and Broadcasting Interface</p>
+              </div>
+              <a
+                href="http://localhost:5080"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-2 bg-gray-800 text-white font-semibold rounded-md hover:bg-gray-900 transition-colors flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+                Ant Media Dashboard
+              </a>
+            </div>
           </header>
 
           {/* Authentication Status Card */}

@@ -431,10 +431,12 @@ export class AntMediaClient {
         enabled: boolean,
         jwtToken?: string
     ) {
+        const currentSettings = await this.getSettings(serverUrl, appName, jwtToken);
         return this.updateSettings(
             serverUrl,
             appName,
             {
+                ...currentSettings,
                 mp4MuxingEnabled: enabled,
             },
             jwtToken
@@ -504,6 +506,7 @@ export class AntMediaClient {
         }
 
         return this.updateSettings(serverUrl, appName, {
+            ...settings,
             encoderSettings,
         }, jwtToken);
     }
@@ -531,6 +534,7 @@ export class AntMediaClient {
             serverUrl,
             appName,
             {
+                ...settings,
                 encoderSettings,
             },
             jwtToken
@@ -592,6 +596,7 @@ export class AntMediaClient {
             serverUrl,
             appName,
             {
+                ...settings,
                 encoderSettings,
             },
             jwtToken
