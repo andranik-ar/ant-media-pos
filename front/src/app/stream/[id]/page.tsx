@@ -53,6 +53,26 @@ export default function StreamDetailPage() {
   const [deletingVodId, setDeletingVodId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isJsonOpen, setIsJsonOpen] = useState(false);
+  const [copyRtmp, setCopyRtmp] = useState(false);
+  const [copyStreamKey, setCopyStreamKey] = useState(false);
+
+  const rtmpUrl = `rtmp://localhost/${settings.appName}/`;
+  const streamKey = streamId;
+
+  const handleCopy = async (text: string, type: 'rtmp' | 'streamKey') => {
+    try {
+      await navigator.clipboard.writeText(text);
+      if (type === 'rtmp') {
+        setCopyRtmp(true);
+        setTimeout(() => setCopyRtmp(false), 2000);
+      } else {
+        setCopyStreamKey(true);
+        setTimeout(() => setCopyStreamKey(false), 2000);
+      }
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
 
   const fetchBroadcast = async (isAutoRefresh = false) => {
     if (isAutoRefresh) {
@@ -289,6 +309,15 @@ export default function StreamDetailPage() {
                     <span>👁️ Watch Stream</span>
                   </button>
                   <button
+                    onClick={() => window.open(`/stream/${streamId}/hls-playback`, '_blank')}
+                    className="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-lg hover:from-purple-700 hover:to-purple-800 transition-all font-semibold text-sm flex items-center gap-2 shadow-lg hover:shadow-xl"
+                  >
+                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M8 5v14l11-7z" />
+                    </svg>
+                    <span>📺 Watch HLS</span>
+                  </button>
+                  <button
                     onClick={() => fetchBroadcast(false)}
                     disabled={loading || refreshing}
                     className="px-5 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed transition-all font-semibold text-sm flex items-center gap-2 shadow-lg hover:shadow-xl"
@@ -330,7 +359,120 @@ export default function StreamDetailPage() {
               )}
             </div>
 
-            {/* Overview Cards */}
+            {/* OBS Broadcasting Section */}
+            <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <svg className="w-6 h-6 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/>
+                </svg>
+                <h3 className="text-lg font-semibold text-gray-900">Broadcast with OBS</h3>
+              </div>
+              <p className="text-sm text-gray-600 mb-4">Use these settings in OBS Studio or other RTMP broadcasting software</p>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">RTMP URL</label>
+                  <div className="flex">
+                    <input
+                      type="text"
+                      readOnly
+                      value={rtmpUrl}
+                      className="flex-1 px-3 py-2 bg-gray-50 border border-gray-300 rounded-l-md text-gray-900 text-sm focus:outline-none"
+                    />
+                    <button
+                      onClick={() => handleCopy(rtmpUrl, 'rtmp')}
+                      className={`px-4 py-2 rounded-r-md font-medium text-sm transition-all duration-200 flex items-center gap-1.5 ${
+                        copyRtmp
+                          ? 'bg-green-600 text-white'
+                          : 'bg-blue-600 text-white hover:bg-blue-700'
+                      }`}
+                    >
+                      {copyRtmp ? (
+                        <>
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                          Copied!
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                          </svg>
+                          Copy
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Stream Key</label>
+                  <div className="flex">
+                    <input
+                      type="text"
+                      readOnly
+                      value={streamKey}
+                      className="flex-1 px-3 py-2 bg-gray-50 border border-gray-300 rounded-l-md text-gray-900 text-sm focus:outline-none font-mono"
+                    />
+                    <button
+                      onClick={() => handleCopy(streamKey, 'streamKey')}
+                      className={`px-4 py-2 rounded-r-md font-medium text-sm transition-all duration-200 flex items-center gap-1.5 ${
+                        copyStreamKey
+                          ? 'bg-green-600 text-white'
+                          : 'bg-blue-600 text-white hover:bg-blue-700'
+                      }`}
+                    >
+                      {copyStreamKey ? (
+                        <>
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                          Copied!
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                          </svg>
+                          Copy
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* JSON Viewer Section */}
+            <div className="bg-white rounded-lg shadow-md border border-gray-200">
+              <button
+                onClick={() => setIsJsonOpen(!isJsonOpen)}
+                className="w-full px-6 py-4 text-left flex justify-between items-center hover:bg-gray-50 rounded-t-lg transition-colors border-b border-gray-200"
+              >
+                <h3 className="text-lg font-semibold text-gray-900">Stream Details (JSON)</h3>
+                <svg
+                  className={`w-5 h-5 transform transition-transform ${isJsonOpen ? "rotate-180" : ""}`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {isJsonOpen && (
+                <div className="p-6">
+                  <div className="bg-gray-900 rounded-lg p-4 overflow-x-auto">
+                    <pre className="text-gray-100 text-sm font-mono leading-relaxed">
+                      {JSON.stringify(broadcast, null, 2)}
+                    </pre>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Stream Statistics */}
             <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Stream Statistics</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -459,37 +601,9 @@ export default function StreamDetailPage() {
                 <p className="text-gray-700 whitespace-pre-wrap">{broadcast.description}</p>
               </div>
             )}
-
-            {/* JSON Viewer Section */}
-            <div className="bg-white rounded-lg shadow-md border border-gray-200">
-              <button
-                onClick={() => setIsJsonOpen(!isJsonOpen)}
-                className="w-full px-6 py-4 text-left flex justify-between items-center hover:bg-gray-50 rounded-t-lg transition-colors border-b border-gray-200"
-              >
-                <h3 className="text-lg font-semibold text-gray-900">Stream Details (JSON)</h3>
-                <svg
-                  className={`w-5 h-5 transform transition-transform ${isJsonOpen ? "rotate-180" : ""}`}
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
-
-              {isJsonOpen && (
-                <div className="p-6">
-                  <div className="bg-gray-900 rounded-lg p-4 overflow-x-auto">
-                    <pre className="text-gray-100 text-sm font-mono leading-relaxed">
-                      {JSON.stringify(broadcast, null, 2)}
-                    </pre>
-                  </div>
-                </div>
-                )}
           </div>
-         </div>
-       </div>
-     </div>
-   </div>
+        </div>
+      </div>
+    </div>
   );
 }

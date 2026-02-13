@@ -1125,6 +1125,16 @@ export default function Home() {
                         </svg>
                         👁️ Watch WebRTC
                       </button>
+                      <button
+                        onClick={() => window.open(`/stream/${stream.streamId}/hls-playback`, '_blank')}
+                        className="flex-1 px-3 py-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white text-sm rounded-md hover:from-purple-700 hover:to-purple-800 transition-all font-semibold flex items-center justify-center gap-1.5 shadow-md hover:shadow-lg"
+                        title="Watch HLS stream"
+                      >
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M8 5v14l11-7z" />
+                        </svg>
+                        📺 Watch HLS
+                      </button>
                     </div>
                   </div>
                 </div>
