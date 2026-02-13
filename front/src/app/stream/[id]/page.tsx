@@ -265,10 +265,8 @@ export default function StreamDetailPage() {
           </div>
 
           {/* Content */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Main Content Area */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Status and Actions */}
+          <div className="space-y-6">
+            {/* Status, Actions, and Statistics */}
             <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
                 <div className="flex items-center gap-3">
@@ -306,7 +304,7 @@ export default function StreamDetailPage() {
                       <path d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
                       <path fillRule="evenodd" d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm0 18a8 8 0 100-16 8 8 0 000 16z" clipRule="evenodd" />
                     </svg>
-                    <span>👁️ Watch Stream</span>
+                    <span>👁️ Watch WebRTC</span>
                   </button>
                   <button
                     onClick={() => window.open(`/stream/${streamId}/hls-playback`, '_blank')}
@@ -350,9 +348,29 @@ export default function StreamDetailPage() {
                 </div>
               </div>
 
+              {/* Stream Statistics */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-gray-50 rounded-lg p-4 border-l-4 border-blue-500">
+                  <p className="text-gray-600 text-sm font-medium mb-1">Type</p>
+                  <p className="text-2xl font-bold text-gray-900">{broadcast.type}</p>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-4 border-l-4 border-green-500">
+                  <p className="text-gray-600 text-sm font-medium mb-1">HLS Viewers</p>
+                  <p className="text-2xl font-bold text-gray-900">{broadcast.hlsViewerCount || 0}</p>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-4 border-l-4 border-purple-500">
+                  <p className="text-gray-600 text-sm font-medium mb-1">WebRTC Viewers</p>
+                  <p className="text-2xl font-bold text-gray-900">{broadcast.webRTCViewerCount || 0}</p>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-4 border-l-4 border-orange-500">
+                  <p className="text-gray-600 text-sm font-medium mb-1">RTMP Viewers</p>
+                  <p className="text-2xl font-bold text-gray-900">{broadcast.rtmpViewerCount || 0}</p>
+                </div>
+              </div>
+
               {/* Description */}
               {broadcast.description && (
-                <div>
+                <div className="mt-6 pt-6 border-t border-gray-200">
                   <h3 className="text-lg font-semibold text-gray-900 mb-3">Description</h3>
                   <p className="text-gray-700 whitespace-pre-wrap">{broadcast.description}</p>
                 </div>
@@ -470,30 +488,7 @@ export default function StreamDetailPage() {
                   </div>
                 </div>
               )}
-            </div>
-
-            {/* Stream Statistics */}
-            <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Stream Statistics</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-gray-50 rounded-lg p-4 border-l-4 border-blue-500">
-                  <p className="text-gray-600 text-sm font-medium mb-1">Type</p>
-                  <p className="text-2xl font-bold text-gray-900">{broadcast.type}</p>
-                </div>
-                <div className="bg-gray-50 rounded-lg p-4 border-l-4 border-green-500">
-                  <p className="text-gray-600 text-sm font-medium mb-1">HLS Viewers</p>
-                  <p className="text-2xl font-bold text-gray-900">{broadcast.hlsViewerCount || 0}</p>
-                </div>
-                <div className="bg-gray-50 rounded-lg p-4 border-l-4 border-purple-500">
-                  <p className="text-gray-600 text-sm font-medium mb-1">WebRTC Viewers</p>
-                  <p className="text-2xl font-bold text-gray-900">{broadcast.webRTCViewerCount || 0}</p>
-                </div>
-                <div className="bg-gray-50 rounded-lg p-4 border-l-4 border-orange-500">
-                  <p className="text-gray-600 text-sm font-medium mb-1">RTMP Viewers</p>
-                  <p className="text-2xl font-bold text-gray-900">{broadcast.rtmpViewerCount || 0}</p>
-                </div>
-              </div>
-            </div>
+          </div>
 
             {/* VODs Section */}
             <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6">
@@ -592,15 +587,6 @@ export default function StreamDetailPage() {
                 </div>
               )}
             </div>
-            </div>
-
-            {/* Description Section */}
-            {broadcast.description && (
-              <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">Description</h3>
-                <p className="text-gray-700 whitespace-pre-wrap">{broadcast.description}</p>
-              </div>
-            )}
           </div>
         </div>
       </div>
