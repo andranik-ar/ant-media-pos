@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Ant Media POS - Stream Management Platform",
+  title: "Stream Management Dashboard - Ant Media POS",
   description: "Professional live streaming management and broadcasting interface for Ant Media Server",
   icons: {
     icon: "/favicon.svg",

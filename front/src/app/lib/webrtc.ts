@@ -18,6 +18,7 @@ export interface WebRTCAdaptorConfig {
     video?: boolean | MediaTrackConstraints;
     audio?: boolean | MediaTrackConstraints;
   };
+  localStream?: MediaStream;
   callback?: (info: string, obj?: any) => void;
   callbackError?: (error: string, message?: string) => void;
 }
@@ -40,6 +41,7 @@ export function createPublishAdaptor(config: WebRTCAdaptorConfig): any {
     websocketUrl,
     localVideoElement,
     mediaConstraints,
+    localStream,
     callback,
     callbackError,
   } = config;
@@ -55,6 +57,11 @@ export function createPublishAdaptor(config: WebRTCAdaptorConfig): any {
   // Only add mediaConstraints if they are explicitly provided
   if (mediaConstraints !== undefined) {
     adaptorConfig.mediaConstraints = mediaConstraints;
+  }
+
+  // Pass localStream if provided (for test streams or custom sources)
+  if (localStream) {
+    adaptorConfig.localStream = localStream;
   }
 
   const adaptor = new WebRTCAdaptor(adaptorConfig);

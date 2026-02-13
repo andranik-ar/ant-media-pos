@@ -245,7 +245,7 @@ export default function WebRTCPlaybackPage() {
 
           {/* Header */}
           <header className="mb-6">
-            <title>WebRTC Playback - {streamId} - Ant Media POS</title>
+            <title>{`WebRTC Playback - ${streamId} - Ant Media POS`}</title>
             <h1 className="text-4xl font-bold text-gray-900 mb-2">WebRTC Playback - {streamId}</h1>
             <p className="text-gray-600 mt-2">Stream ID: <span className="font-mono text-gray-700">{streamId}</span></p>
           </header>

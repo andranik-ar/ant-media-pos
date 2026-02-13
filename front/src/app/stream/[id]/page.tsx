@@ -236,8 +236,6 @@ export default function StreamDetailPage() {
 
           {/* Header */}
           <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6 mb-6">
-            <title>Stream Management - {streamId} - Ant Media POS</title>
-
             <div>
               <h1 className="text-3xl font-bold text-gray-900 mb-2">
                 Stream Management - {broadcast.name || broadcast.streamId}

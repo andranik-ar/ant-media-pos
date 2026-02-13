@@ -33,13 +33,11 @@ export default function WebRTCBroadcastPage() {
   const [isPublishing, setIsPublishing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string>("Ready to broadcast");
-  const [useScreenShare, setUseScreenShare] = useState(false);
+  const [inputSource, setInputSource] = useState<'camera' | 'screen' | 'test'>('camera');
   const [screenShareSupported, setScreenShareSupported] = useState(false);
   const [cameras, setCameras] = useState<MediaDeviceInfo[]>([]);
   const [selectedCamera, setSelectedCamera] = useState<string>("");
   const [stats, setStats] = useState<{ bitrate: string; resolution: string } | null>(null);
-  const [useTestStream, setUseTestStream] = useState(false);
-  const [testStreamAvailable, setTestStreamAvailable] = useState(false);
   const [adaptorInitialized, setAdaptorInitialized] = useState(false);
 
   // Refs
@@ -56,14 +54,9 @@ export default function WebRTCBroadcastPage() {
       setCameras(devices.cameras);
       if (devices.cameras.length > 0) {
         setSelectedCamera(devices.cameras[0].deviceId);
-        setTestStreamAvailable(false);
+        setInputSource('camera');
       } else {
-        // No cameras available, offer test stream
-        setTestStreamAvailable(true);
-        setError(
-          "No camera/microphone devices found. You can use Test Stream mode for testing."
-        );
-        setUseTestStream(true);
+        setInputSource('test');
       }
     });
 
@@ -103,14 +96,14 @@ export default function WebRTCBroadcastPage() {
 
       switch (info) {
         case "initialized":
-          setStatus(useTestStream && !cameras.length ? "Ready to broadcast (Test Stream Mode)" : "Initialized - Ready to publish");
+          setStatus(inputSource === 'test' ? "Ready to broadcast (Test Source Mode)" : "Initialized - Ready to publish");
           setAdaptorInitialized(true);
           setError(null);
           break;
         case "publish_started":
           setIsPublishing(true);
           setStatus(
-            `Publishing stream: ${streamId}${useTestStream ? " (Test Stream)" : ""}`
+            `Publishing stream: ${streamId}${inputSource === 'test' ? " (Test Source)" : ""}`
           );
           setError(null);
           startStatsCollection();
@@ -124,7 +117,7 @@ export default function WebRTCBroadcastPage() {
           setScreenShareSupported(true);
           break;
         case "screen_share_stopped":
-          setUseScreenShare(false);
+          setInputSource('camera');
           setStatus("Screen sharing stopped");
           break;
         case "closed":
@@ -152,9 +145,9 @@ export default function WebRTCBroadcastPage() {
     const handleCallbackError = (error: string, message?: string) => {
       console.error("WebRTC Error:", error, message);
       
-      // Suppress and ignore "no input device" errors when using test stream
-      if (useTestStream && (error.includes("No input device") || error.includes("NotFoundError"))) {
-        console.log("Suppressed device error - using test stream");
+      // Suppress and ignore "no input device" errors when using test source
+      if (inputSource === 'test' && (error.includes("No input device") || error.includes("NotFoundError"))) {
+        console.log("Suppressed device error - using test source");
         return;
       }
       
@@ -177,23 +170,24 @@ export default function WebRTCBroadcastPage() {
     };
 
     let mediaConstraints;
+    let localStream: MediaStream | undefined;
 
-    // Only request media if not using test stream or if we have cameras available
-    if (useTestStream && !cameras.length) {
-      // Don't request any media at all when using test stream with no cameras
-      // This prevents getUserMedia from being called
+    // Set media constraints based on input source
+    if (inputSource === 'test') {
+      // Always use test stream - create it now
+      if (!testStreamRef.current) {
+        testStreamRef.current = createTestVideoStream();
+      }
+      localStream = testStreamRef.current;
+      
+      // Display on video element
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = testStreamRef.current;
+      }
+      
+      // Don't request camera/mic - use test stream only
       mediaConstraints = undefined;
-    } else if (useTestStream) {
-      // Test stream available but cameras also available - request camera as fallback
-      mediaConstraints = {
-        video: {
-          width: { ideal: 320 },
-          height: { ideal: 240 },
-          deviceId: selectedCamera ? { exact: selectedCamera } : undefined,
-        },
-        audio: true,
-      };
-    } else if (useScreenShare) {
+    } else if (inputSource === 'screen') {
       mediaConstraints = {
         video: true,
         audio: true,
@@ -214,6 +208,7 @@ export default function WebRTCBroadcastPage() {
       websocketUrl,
       localVideoElement: localVideoRef.current || undefined,
       mediaConstraints: mediaConstraints as any,
+      localStream,
       callback: handleCallback,
       callbackError: handleCallbackError,
     });
@@ -226,7 +221,7 @@ export default function WebRTCBroadcastPage() {
       }
       disposeAdaptor(adaptorRef.current);
     };
-  }, [settings.serverUrl, settings.appName, streamId, useScreenShare, selectedCamera, useTestStream]);
+  }, [settings.serverUrl, settings.appName, streamId, inputSource, selectedCamera]);
 
   // Check current stream status and update publishing state after adaptor is ready
   useEffect(() => {
@@ -266,31 +261,8 @@ export default function WebRTCBroadcastPage() {
       setError(null);
       setStatus("Starting broadcast...");
 
-      // For test stream mode, we need to inject our custom stream
-      if (useTestStream && !cameras.length) {
-        // Create test video stream if not already created
-        if (!testStreamRef.current) {
-          testStreamRef.current = createTestVideoStream();
-        }
-        
-        // Display on video element
-        if (localVideoRef.current) {
-          localVideoRef.current.srcObject = testStreamRef.current;
-        }
-
-        // Manually add the test stream tracks to peer connection
-        // This bypasses the normal getUserMedia flow
-        const mediaManager = (adaptorRef.current as any).mediaManager;
-        if (mediaManager) {
-          mediaManager.localStream = testStreamRef.current;
-        }
-      } else if (useTestStream && testStreamRef.current) {
-        // Update video element if already created
-        if (localVideoRef.current) {
-          localVideoRef.current.srcObject = testStreamRef.current;
-        }
-      } else if (useScreenShare && screenShareSupported) {
-        // Switch to screen sharing
+      // For screen share, we need to switch to desktop capture
+      if (inputSource === 'screen' && screenShareSupported) {
         adaptorRef.current.switchDesktopCapture(streamId);
       }
 
@@ -313,7 +285,7 @@ export default function WebRTCBroadcastPage() {
       stopStatsCollection();
 
       // Cleanup test stream if used
-      if (useTestStream && testStreamRef.current) {
+      if (inputSource === 'test' && testStreamRef.current) {
         const cleanup = (testStreamRef.current as any).cleanup;
         if (cleanup) cleanup();
         testStreamRef.current = null;
@@ -324,18 +296,18 @@ export default function WebRTCBroadcastPage() {
     }
   };
 
-  const handleSwitchScreenShare = async () => {
+  const handleSwitchInputSource = async () => {
     if (!adaptorRef.current || !isPublishing) return;
 
     try {
       setError(null);
-      if (!useScreenShare && screenShareSupported) {
+      if (inputSource === 'camera' && screenShareSupported) {
         adaptorRef.current.switchDesktopCapture(streamId);
-        setUseScreenShare(true);
+        setInputSource('screen');
         setStatus("Switched to screen sharing");
-      } else if (useScreenShare) {
+      } else if (inputSource === 'screen') {
         await adaptorRef.current.switchVideoCameraCapture(streamId, selectedCamera, undefined);
-        setUseScreenShare(false);
+        setInputSource('camera');
         setStatus("Switched back to camera");
       }
     } catch (err) {
@@ -384,7 +356,7 @@ export default function WebRTCBroadcastPage() {
 
           {/* Header */}
           <header className="mb-6">
-            <title>WebRTC Broadcast - {streamId} - Ant Media POS</title>
+            <title>{`WebRTC Broadcast - ${streamId} - Ant Media POS`}</title>
             <h1 className="text-4xl font-bold text-gray-900 mb-2">WebRTC Broadcast - {streamId}</h1>
             <p className="text-gray-600 mt-2">Stream ID: <span className="font-mono text-gray-700">{streamId}</span></p>
           </header>
@@ -427,8 +399,64 @@ export default function WebRTCBroadcastPage() {
 
             {/* Controls Section */}
             <div className="space-y-4">
-              {/* Camera Selection */}
-              {!useScreenShare && cameras.length > 0 && (
+              {/* Input Source Selection */}
+              <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4">
+                <label className="block text-sm font-semibold text-gray-900 mb-3">Input Source</label>
+                <div className="space-y-2">
+                  <label className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${inputSource === 'camera' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                    <input
+                      type="radio"
+                      name="inputSource"
+                      value="camera"
+                      checked={inputSource === 'camera'}
+                      onChange={() => setInputSource('camera')}
+                      disabled={isPublishing || cameras.length === 0}
+                      className="w-4 h-4 text-blue-600"
+                    />
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-gray-900">📷 Camera</p>
+                      <p className="text-xs text-gray-500">Use your webcam</p>
+                    </div>
+                  </label>
+                  
+                  {screenShareSupported && (
+                    <label className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${inputSource === 'screen' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                      <input
+                        type="radio"
+                        name="inputSource"
+                        value="screen"
+                        checked={inputSource === 'screen'}
+                        onChange={() => setInputSource('screen')}
+                        disabled={isPublishing}
+                        className="w-4 h-4 text-blue-600"
+                      />
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold text-gray-900">🖥️ Screen Share</p>
+                        <p className="text-xs text-gray-500">Share your screen</p>
+                      </div>
+                    </label>
+                  )}
+                  
+                  <label className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${inputSource === 'test' ? 'border-amber-500 bg-amber-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                    <input
+                      type="radio"
+                      name="inputSource"
+                      value="test"
+                      checked={inputSource === 'test'}
+                      onChange={() => setInputSource('test')}
+                      disabled={isPublishing}
+                      className="w-4 h-4 text-amber-600"
+                    />
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-gray-900">🧪 Test Source</p>
+                      <p className="text-xs text-gray-500">Animated test pattern</p>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              {/* Camera Selection (only shown when camera is selected) */}
+              {inputSource === 'camera' && cameras.length > 0 && (
                 <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4">
                   <label className="block text-sm font-semibold text-gray-900 mb-2">Camera</label>
                   <select
@@ -443,32 +471,6 @@ export default function WebRTCBroadcastPage() {
                       </option>
                     ))}
                   </select>
-                </div>
-              )}
-
-              {/* Test Stream Toggle */}
-              {testStreamAvailable && (
-                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={useTestStream}
-                      onChange={(e) => {
-                        setUseTestStream(e.target.checked);
-                        setError(null);
-                      }}
-                      disabled={isPublishing}
-                      className="w-4 h-4 rounded border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                    />
-                    <div>
-                      <p className="text-sm font-semibold text-amber-800">
-                        🧪 Use Test Stream Mode
-                      </p>
-                      <p className="text-xs text-amber-600">
-                        Broadcast animated test content instead of camera (for testing without devices)
-                      </p>
-                    </div>
-                  </label>
                 </div>
               )}
 
@@ -500,15 +502,15 @@ export default function WebRTCBroadcastPage() {
                 </button>
               </div>
 
-              {/* Screen Share Controls */}
-              {screenShareSupported && (
+              {/* Switch Source (while publishing) */}
+              {screenShareSupported && isPublishing && inputSource !== 'test' && (
                 <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4">
                   <button
-                    onClick={handleSwitchScreenShare}
+                    onClick={handleSwitchInputSource}
                     disabled={!isPublishing}
                     className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-semibold py-2 px-4 rounded-lg transition-colors"
                   >
-                    {useScreenShare ? "Switch to Camera" : "Share Screen"}
+                    {inputSource === 'camera' ? "Switch to Screen Share" : "Switch to Camera"}
                   </button>
                 </div>
               )}
@@ -518,13 +520,12 @@ export default function WebRTCBroadcastPage() {
                 <h3 className="text-sm font-semibold text-gray-900 mb-2">Info</h3>
                 <ul className="text-xs text-gray-600 space-y-1">
                   <li>• Start broadcast to begin streaming</li>
-                  {useTestStream ? (
+                  {inputSource === 'test' ? (
                     <li>• 🧪 Using animated test video source</li>
+                  ) : inputSource === 'screen' ? (
+                    <li>• 🖥️ Sharing your screen</li>
                   ) : (
-                    <>
-                      <li>• Camera feed shown in preview</li>
-                      {screenShareSupported && <li>• Switch to screen sharing anytime</li>}
-                    </>
+                    <li>• Camera feed shown in preview</li>
                   )}
                   <li>• View stats while broadcasting</li>
                 </ul>

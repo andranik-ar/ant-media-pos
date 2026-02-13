@@ -627,7 +627,6 @@ export default function Home() {
         <div className="mx-auto max-w-6xl 2xl:max-w-7xl">
           {/* Header */}
           <header className="mb-6">
-            <title>Stream Management Dashboard - Ant Media POS</title>
             <h1 className="text-4xl font-bold text-gray-900 mb-2">Stream Management Dashboard</h1>
             <p className="text-gray-600">Live Stream Management and Broadcasting Interface</p>
           </header>
